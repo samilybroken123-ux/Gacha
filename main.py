@@ -7,6 +7,7 @@ from cogs.gacha import GachaCog
 from cogs.chat_rewards import ChatRewardsCog
 from cogs.inventory import InventoryCog
 from cogs.profile import ProfileCog
+from cogs.info import InfoCog
 from database import Database
 
 load_dotenv()
@@ -38,6 +39,7 @@ async def load_cogs():
         ChatRewardsCog(bot, db),
         InventoryCog(bot, db),
         ProfileCog(bot, db),
+        InfoCog(bot, db),
     ]
     
     for cog in cogs:
