@@ -39,11 +39,15 @@ class GachaCog(commands.Cog):
         }
         return colors.get(rarity, discord.Color.greyple())
     
-    @commands.hybrid_command(name="roll", description="Roll for a fruit! Costs 100 currency")
+    @commands.hybrid_command(name="roll", description="Roll for a fruit! First roll is FREE, then 50 Draco Coins")
     async def roll(self, ctx):
         """Roll for a fruit"""
         user = await self.db.get_or_create_user(ctx.author.id, ctx.author.name)
-        currency = await self.db.get_currency(ctx.author.id)
+        coins = await self.db.get_draco_coins(ctx.author.id)
+        
+        # Check if first roll
+        is_first_roll = not await self.db.is_first_roll_done(ctx.author.id)
+        roll_cost = 0 if is_first_roll else 50
         
         # Check cooldown (1 hour)
         last_roll = await self.db.get_last_roll(ctx.author.id)
@@ -65,17 +69,21 @@ class GachaCog(commands.Cog):
                 await ctx.send(embed=embed)
                 return
         
-        if currency < 100:
+        # Check currency if not first roll
+        if not is_first_roll and coins < roll_cost:
             embed = discord.Embed(
-                title="❌ Insufficient Currency",
-                description=f"You need 100 currency to roll, but you only have {currency}",
+                title="❌ Insufficient Draco Coins",
+                description=f"You need {roll_cost} Draco Coins to roll, but you only have {coins}",
                 color=discord.Color.red()
             )
             await ctx.send(embed=embed)
             return
         
-        # Subtract currency
-        await self.db.subtract_currency(ctx.author.id, 100)
+        # Subtract coins if not first roll
+        if not is_first_roll:
+            await self.db.subtract_draco_coins(ctx.author.id, roll_cost)
+        else:
+            await self.db.set_first_roll_done(ctx.author.id)
         
         # Roll for fruit
         fruit = self.calculate_drop_rate()
@@ -86,6 +94,7 @@ class GachaCog(commands.Cog):
         await self.db.set_last_roll(ctx.author.id)
         
         # Create embed with image
+        roll_type = "FREE 🎁" if is_first_roll else "50 💰"
         embed = discord.Embed(
             title=f"🎲 You rolled: {fruit['name']}!",
             description=f"**Rarity:** {fruit['rarity']}\n**Description:** {fruit['description']}",
@@ -93,7 +102,8 @@ class GachaCog(commands.Cog):
         )
         embed.set_image(url=fruit.get('image', ''))
         embed.add_field(name="Drop Rate", value=f"{fruit['drop_rate']}%", inline=True)
-        embed.add_field(name="Currency Remaining", value=f"{currency - 100}", inline=True)
+        embed.add_field(name="Roll Cost", value=f"{roll_type}", inline=True)
+        embed.add_field(name="Draco Coins Remaining", value=f"{coins - roll_cost} 💰", inline=True)
         embed.set_footer(text=f"Rolling: {ctx.author.name} | Next roll in 1 hour")
         
         await ctx.send(embed=embed)
@@ -142,9 +152,9 @@ class GachaCog(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.hybrid_command(name="addcurrency", description="[ADMIN] Add currency to a user")
+    @commands.hybrid_command(name="addcurrency", description="[ADMIN] Add Draco Coins to a user")
     async def addcurrency(self, ctx, user: discord.User, amount: int):
-        """Add currency to a user (Admin only)"""
+        """Add Draco Coins to a user (Admin only)"""
         if ctx.author.id not in self.admin_ids:
             embed = discord.Embed(
                 title="❌ Admin Only",
@@ -155,18 +165,18 @@ class GachaCog(commands.Cog):
             return
         
         await self.db.get_or_create_user(user.id, user.name)
-        await self.db.add_currency(user.id, amount)
+        await self.db.add_draco_coins(user.id, amount)
         
         embed = discord.Embed(
-            title="✅ Currency Added",
-            description=f"Added **{amount}** currency to {user.mention}",
+            title="✅ Draco Coins Added",
+            description=f"Added **{amount}** Draco Coins to {user.mention}",
             color=discord.Color.green()
         )
         embed.set_footer(text=f"Admin: {ctx.author.name}")
         
         await ctx.send(embed=embed)
     
-    @commands.hybrid_command(name="daily", description="Claim your daily reward")
+    @commands.hybrid_command(name="daily", description="Claim your daily reward (500 Draco Coins)")
     async def daily(self, ctx):
         """Claim daily reward"""
         await self.db.get_or_create_user(ctx.author.id, ctx.author.name)
@@ -191,14 +201,14 @@ class GachaCog(commands.Cog):
                 await ctx.send(embed=embed)
                 return
         
-        # Award currency
+        # Award coins
         reward = 500
-        await self.db.add_currency(ctx.author.id, reward)
+        await self.db.add_draco_coins(ctx.author.id, reward)
         await self.db.set_last_daily(ctx.author.id)
         
         embed = discord.Embed(
             title="✅ Daily Reward Claimed!",
-            description=f"You received {reward} currency",
+            description=f"You received {reward} Draco Coins 💰",
             color=discord.Color.green()
         )
         embed.set_footer(text="Come back tomorrow for another reward!")
