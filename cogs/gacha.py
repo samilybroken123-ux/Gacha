@@ -9,7 +9,7 @@ class GachaCog(commands.Cog):
         self.bot = bot
         self.db = db
         # Admin user IDs (add your user ID here)
-        self.admin_ids = [1234567890]  # Replace with your Discord user ID
+        self.admin_ids = [1320263500291113002]  # Your Discord user ID
     
     def calculate_drop_rate(self):
         """Calculate which fruit to drop based on rarity rates"""
